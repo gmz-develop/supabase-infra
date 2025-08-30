@@ -1,0 +1,24 @@
+name: infra-ci
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local stack
+        run: supabase start
+      - name: Apply migrations
+        run: supabase db reset --no-backup
+      - name: Run tests
+        env:
+          DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        run: |
+          psql $DB_URL -f scripts/create_buckets.sql || true
+          psql $DB_URL -f scripts/test_rls.sql

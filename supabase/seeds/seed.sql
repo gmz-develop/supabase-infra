@@ -1,0 +1,2 @@
+-- Usuario fake solo para local si se usa service role en tests
+-- No crear usuarios en prod vía SQL.
