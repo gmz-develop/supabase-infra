@@ -1,24 +1,64 @@
-# supabase-infra
+# Infra Supabase
+Infraestructura sin front. Requiere Docker. No necesitas instalar la Supabase CLI globalmente: usamos `npx supabase@latest`.
 
-Infraestructura de Supabase versionada con Supabase CLI.
+## Requisitos
+- Docker Desktop
+- Node 18+ (Edge Functions y para usar `npx`)
 
-**Requisitos (WSL Ubuntu 22.04)**
-- **CLI vía `npx`**: evita `npm i -g supabase`.
-- **Docker (opcional para local)**: Docker Desktop en Windows con "WSL integration" activada para Ubuntu.
+## Uso rápido
+```bash
+# Arrancar servicios locales de Supabase
+npx -y supabase@latest start
 
-**Pasos Iniciales**
-- **Login**: `npx supabase@latest login` (pega tu Access Token).
-- **Init**: `npx supabase@latest init` (crea `supabase/config.toml`).
-- **Listar proyectos**: `npx supabase@latest projects list`.
-- **Vincular**: `npx supabase@latest link --project-ref <REFERENCE_ID>`.
-- **Snapshot remoto**: `npx supabase@latest db pull` (crea/actualiza `supabase/migrations/*` o `schema.sql`).
+# Aplicar migraciones y seeds
+npx -y supabase@latest db reset --local --yes
 
-**Flujo recomendado**
-- Cambios en SQL (esquema `public`).
-- Generar migración: `npx supabase@latest db diff -f <nombre_migracion>`.
-- Aplicar a remoto: `npx supabase@latest db push`.
-- Commit habitual: `git add supabase/ && git commit -m "chore: update infra"`.
+# Scripts adicionales (requiere psql y DB_URL en .env)
+psql $DB_URL -f scripts/create_buckets.sql || true
+psql $DB_URL -f scripts/test_rls.sql
+```
 
-**Notas**
-- Por defecto se excluyen `auth` y `storage` en diffs; es intencional.
-- Para uso frecuente, puedes crear un alias: `echo 'alias supabase="npx supabase@latest"' >> ~/.bashrc && source ~/.bashrc`.
+Despliegue Edge Function
+```bash
+npx -y supabase@latest functions deploy customer_sync --project-ref <REF>
+```
+
+## Makefile
+Atajos que usan `npx`:
+```bash
+make up        # npx supabase start
+make down      # npx supabase stop
+make migrate   # npx supabase db reset --local --yes
+make seed      # psql $DB_URL -f scripts/create_buckets.sql
+make test-db   # psql $DB_URL -f scripts/test_rls.sql
+make serve-fn NAME=customer_sync              # sirve una función con .env
+make deploy-fn NAME=customer_sync REF=<REF>   # deploy de una función
+make deploy-all-fns REF=<REF>                 # deploy de todas las funciones
+```
+
+## Flujo IaC y CI/CD
+- Migrations: agrega SQL en `supabase/migrations/*.sql` (puedes generar con `npx supabase@latest db diff --linked --file 00xx_desc.sql`).
+- Seeds: en `supabase/seeds/seed.sql`.
+- Edge Functions: en `supabase/edge/<name>/index.ts`.
+
+Al hacer push/PR, el workflow `infra-ci` valida las migraciones en local y corre pruebas SQL.
+
+Al mergear en `main`, el workflow `deploy-supabase`:
+- Empuja migraciones al proyecto remoto (`supabase db push`).
+- Setea los secrets de Edge Functions (SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY).
+- Despliega todas las Edge Functions en `supabase/edge/*` automáticamente.
+
+Configura estos GitHub Secrets en el repo:
+- `SUPABASE_PROJECT_REF`: Project reference (Dashboard → Settings → General).
+- `SUPABASE_DB_PASSWORD`: Database password (Dashboard → Settings → Database → Connection string).
+- `SUPABASE_ACCESS_TOKEN`: Access Token (Dashboard → Account → Access Tokens) para deploy de funciones.
+- `SUPABASE_SERVICE_ROLE_KEY`: Service role key (Dashboard → Settings → API).
+
+Comandos útiles para generar migraciones:
+```bash
+# Vincular proyecto una vez en tu máquina
+npx -y supabase@latest link --project-ref <REF>
+
+# Generar migration a partir de cambios locales
+npx -y supabase@latest db diff --linked --file 00xx_descripcion.sql
+```
