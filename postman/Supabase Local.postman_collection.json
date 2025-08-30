@@ -1,0 +1,133 @@
+{
+  "info": {
+    "name": "Supabase Local",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "SUPABASE_URL", "value": "http://127.0.0.1:54321", "type": "string" },
+    { "key": "ANON", "value": "PASTE_LOCAL_ANON_KEY", "type": "string" },
+    { "key": "ACCESS_TOKEN", "value": "", "type": "string" },
+    { "key": "TEST_EMAIL", "value": "test@example.com", "type": "string" },
+    { "key": "TEST_PASSWORD", "value": "Passw0rd!", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Sign Up",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "apikey", "value": "{{ANON}}" },
+          { "key": "Authorization", "value": "Bearer {{ANON}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{TEST_EMAIL}}\",\n  \"password\": \"{{TEST_PASSWORD}}\",\n  \"data\": { \"name\": \"Test User\" }\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{SUPABASE_URL}}/auth/v1/signup"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "try {",
+              "  const json = pm.response.json();",
+              "  const token = json.access_token || (json.session && json.session.access_token);",
+              "  if (token) { pm.environment.set('ACCESS_TOKEN', token); }",
+              "} catch (e) { /* ignore */ }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - Sign In",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "apikey", "value": "{{ANON}}" },
+          { "key": "Authorization", "value": "Bearer {{ANON}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{TEST_EMAIL}}\",\n  \"password\": \"{{TEST_PASSWORD}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{SUPABASE_URL}}/auth/v1/token?grant_type=password"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const json = pm.response.json();",
+              "  const token = json.access_token || (json.session && json.session.access_token);",
+              "  if (token) { pm.environment.set('ACCESS_TOKEN', token); }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "RPC - v1_me",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "apikey", "value": "{{ANON}}" },
+          { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Content-Profile", "value": "app" }
+        ],
+        "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+        "url": "{{SUPABASE_URL}}/rest/v1/rpc/v1_me"
+      }
+    },
+    {
+      "name": "Tables - app.customers (select *)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "apikey", "value": "{{ANON}}" },
+          { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" },
+          { "key": "Accept-Profile", "value": "app" }
+        ],
+        "url": "{{SUPABASE_URL}}/rest/v1/customers?select=*"
+      }
+    },
+    {
+      "name": "Auth - Get User",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "apikey", "value": "{{ANON}}" },
+          { "key": "Authorization", "value": "Bearer {{ACCESS_TOKEN}}" }
+        ],
+        "url": "{{SUPABASE_URL}}/auth/v1/user"
+      }
+    },
+    {
+      "name": "Edge Function - customer_sync",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{ANON}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"test\",\n  \"foo\": \"bar\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{SUPABASE_URL}}/functions/v1/customer_sync"
+      }
+    }
+  ]
+}
+
