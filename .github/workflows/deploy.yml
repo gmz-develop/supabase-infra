@@ -58,8 +58,16 @@ jobs:
           echo "::add-mask::$ENC_PASS"
           if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
           DB_HOST="db.${PROJECT_REF}.supabase.co"
-          DB_HOST_IP=$(getent ahostsv4 "$DB_HOST" | awk '{print $1; exit}')
-          DB_URL="postgresql://postgres:${ENC_PASS}@${DB_HOST_IP}:5432/postgres?sslmode=require"
+          echo "::notice::DB_HOST=$DB_HOST"
+          # Try to resolve IPv4, but don't fail the step if DNS is transient
+          DB_HOST_IP=$(getent ahostsv4 "$DB_HOST" | awk 'NR==1{print $1}' || true)
+          if [ -z "${DB_HOST_IP}" ]; then
+            echo "::warning::DNS lookup failed for $DB_HOST; using hostname in DB_URL"
+          else
+            echo "::notice::DB_HOST_IP=$DB_HOST_IP"
+          fi
+          HOST_OR_IP="${DB_HOST_IP:-$DB_HOST}"
+          DB_URL="postgresql://postgres:${ENC_PASS}@${HOST_OR_IP}:5432/postgres?sslmode=require"
           supabase db push --db-url "$DB_URL"
 
       - name: Set Edge Function secrets
