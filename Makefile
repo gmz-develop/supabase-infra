@@ -10,6 +10,10 @@ down:
 migrate:
 	$(SUPABASE) db reset --local --yes
 
+push-remote:
+	$(SUPABASE) db push
+	@echo "Migraciones locales aplicadas en la base remota."
+
 seed:
 	psql $$DB_URL -f scripts/create_buckets.sql || true
 
@@ -39,3 +43,11 @@ deploy-all-fns:
 		echo "Deploying $$name"; \
 		$(SUPABASE) functions deploy $$name --project-ref $(REF); \
 	done
+
+supabase-repair:
+	@echo "Reparando historial de migraciones Supabase..."
+	git pull
+	$(SUPABASE) migration repair --status reverted 20250830143937
+	$(SUPABASE) db pull
+	@echo "Listo. Migraciones reparadas y sincronizadas."
+
