@@ -53,6 +53,9 @@ Configura estos GitHub Secrets en el repo:
 - `SUPABASE_DB_PASSWORD`: Database password (Dashboard → Settings → Database → Connection string).
 - `SUPABASE_ACCESS_TOKEN`: Access Token (Dashboard → Account → Access Tokens) para deploy de funciones.
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key (Dashboard → Settings → API).
+- `SUPABASE_POOLER_HOST` (opcional): Host del Pooler (IPv4), útil si el runner no tiene IPv6. Lo ves en Settings → Database → Connection string → Pooling (ej.: `aws-0-us-east-1.pooler.supabase.com`).
+- `SUPABASE_POOLER_PORT` (opcional): Puerto del Pooler, por defecto `6543`.
+ - `SUPABASE_POOLER_USER` (opcional): Usuario del Pooler. Si no lo configuras, el workflow usa `postgres.<PROJECT_REF>` automáticamente (formato típico que muestra Studio en la cadena del Pooler).
 
 Comandos útiles para generar migraciones:
 ```bash
