@@ -62,7 +62,9 @@ jobs:
           ENC_PASS=$(python3 -c "import os, urllib.parse; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           echo "::add-mask::$ENC_PASS"
           if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
-          DB_URL="postgresql://postgres:${ENC_PASS}@db.${PROJECT_REF}.supabase.co:5432/postgres?sslmode=require"
+          DB_HOST="db.${PROJECT_REF}.supabase.co"
+          DB_HOST_IP=$(getent ahostsv4 "$DB_HOST" | awk '{print $1; exit}')
+          DB_URL="postgresql://postgres:${ENC_PASS}@${DB_HOST}:5432/postgres?hostaddr=${DB_HOST_IP}&sslmode=require"
           supabase db push --db-url "$DB_URL"
 
       - name: Set Edge Function secrets
