@@ -59,15 +59,18 @@ jobs:
           if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
           DB_HOST="db.${PROJECT_REF}.supabase.co"
           echo "::notice::DB_HOST=$DB_HOST"
-          # Try to resolve IPv4, but don't fail the step if DNS is transient
+          # Resolve IPv4 strictly to avoid IPv6 connectivity issues on runners
           DB_HOST_IP=$(getent ahostsv4 "$DB_HOST" | awk 'NR==1{print $1}' || true)
           if [ -z "${DB_HOST_IP}" ]; then
-            echo "::warning::DNS lookup failed for $DB_HOST; using hostname in DB_URL"
-          else
-            echo "::notice::DB_HOST_IP=$DB_HOST_IP"
+            # Fallback attempt using generic hosts database and filtering IPv4
+            DB_HOST_IP=$(getent hosts "$DB_HOST" | awk '$1 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ {print $1; exit}' || true)
           fi
-          HOST_OR_IP="${DB_HOST_IP:-$DB_HOST}"
-          DB_URL="postgresql://postgres:${ENC_PASS}@${HOST_OR_IP}:5432/postgres?sslmode=require"
+          if [ -z "${DB_HOST_IP}" ]; then
+            echo "::error::No IPv4 A record for $DB_HOST; runner has no IPv6 connectivity."
+            exit 2
+          fi
+          echo "::notice::DB_HOST_IP=$DB_HOST_IP"
+          DB_URL="postgresql://postgres:${ENC_PASS}@${DB_HOST_IP}:5432/postgres?sslmode=require"
           supabase db push --db-url "$DB_URL"
 
       - name: Set Edge Function secrets
