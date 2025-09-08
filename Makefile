@@ -14,6 +14,10 @@ push-remote:
 	$(SUPABASE) db push
 	@echo "Migraciones locales aplicadas en la base remota."
 
+pull-remote:
+	$(SUPABASE) db pull
+	@echo "Migraciones remotas descargadas a local."
+	
 seed:
 	psql $$DB_URL -f scripts/create_buckets.sql || true
 
