@@ -15,7 +15,7 @@ jobs:
       - name: Start local stack
         run: supabase start
       - name: Apply migrations
-        run: supabase db reset --no-backup
+        run: supabase db reset --yes
       - name: Run tests
         env:
           DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
