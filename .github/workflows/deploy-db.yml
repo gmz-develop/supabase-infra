@@ -118,9 +118,14 @@ jobs:
           set -euo pipefail
           if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
           if [ -d supabase/edge ]; then
+            # Supabase CLI expects functions under supabase/functions/<name> by convention.
+            # Mirror supabase/edge/* into supabase/functions/* for the deploy step.
+            mkdir -p supabase/functions
             for d in supabase/edge/*; do
               [ -d "$d" ] || continue
               name=$(basename "$d")
+              rm -rf "supabase/functions/$name"
+              cp -R "$d" "supabase/functions/$name"
               echo "Deploying function: $name"
               supabase functions deploy "$name" --project-ref "$PROJECT_REF"
             done
