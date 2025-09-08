@@ -1,4 +1,4 @@
-name: infra-ci
+name: test-db
 on:
   pull_request:
   push:
