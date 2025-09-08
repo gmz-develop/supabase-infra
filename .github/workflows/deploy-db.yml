@@ -31,6 +31,13 @@ jobs:
           fi
           echo "::notice::All required secrets are set"
 
+          # Validate SUPABASE_ACCESS_TOKEN format (must start with sbp_)
+          if ! [[ "${SUPABASE_ACCESS_TOKEN}" =~ ^sbp_[A-Za-z0-9]+$ ]]; then
+            echo "::error title=Invalid SUPABASE_ACCESS_TOKEN:: Token must be a Supabase Personal Access Token starting with 'sbp_'." >&2
+            echo "Create one at https://supabase.com/dashboard/account/tokens and save it as the repo secret SUPABASE_ACCESS_TOKEN." >&2
+            exit 1
+          fi
+
           # Normalize project ref in case a full URL was provided
           RAW_REF="${SUPABASE_PROJECT_REF}"
           REF="$RAW_REF"
