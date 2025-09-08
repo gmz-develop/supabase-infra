@@ -36,6 +36,18 @@ jobs:
             exit 1
           fi
 
+          # Normalize project ref in case a full URL was provided
+          RAW_REF="${SUPABASE_PROJECT_REF}"
+          REF="$RAW_REF"
+          REF="${REF#http://}"
+          REF="${REF#https://}"
+          REF="${REF%%.supabase.co*}"
+          # Basic sanity checks (20 lowercase alphanumerics)
+          if ! [[ "$REF" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "::warning title=Suspicious SUPABASE_PROJECT_REF:: Expected a 20-char project ref, got '$RAW_REF'. Using sanitized '$REF'."
+          fi
+          echo "PROJECT_REF=$REF" >> "$GITHUB_ENV"
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -43,14 +55,14 @@ jobs:
 
       - name: Push DB migrations to remote
         env:
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
           # URL-encode password to support special characters
           ENC_PASS=$(python3 -c "import os, urllib.parse; print(urllib.parse.quote(os.environ['SUPABASE_DB_PASSWORD'], safe=''))")
           echo "::add-mask::$ENC_PASS"
-          DB_URL="postgresql://postgres:${ENC_PASS}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres"
+          if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
+          DB_URL="postgresql://postgres:${ENC_PASS}@db.${PROJECT_REF}.supabase.co:5432/postgres?sslmode=require"
           supabase db push --db-url "$DB_URL"
 
       - name: Set Edge Function secrets
@@ -58,23 +70,25 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          SUPABASE_URL="https://${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co"
+          if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
+          SUPABASE_URL="https://${PROJECT_REF}.supabase.co"
           supabase secrets set \
             SUPABASE_URL="$SUPABASE_URL" \
             SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+            --project-ref "$PROJECT_REF"
 
       - name: Deploy all Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
           if [ -d supabase/edge ]; then
             for d in supabase/edge/*; do
               [ -d "$d" ] || continue
               name=$(basename "$d")
               echo "Deploying function: $name"
-              supabase functions deploy "$name" --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+              supabase functions deploy "$name" --project-ref "$PROJECT_REF"
             done
           else
             echo "No supabase/edge directory found; skipping function deploys."
