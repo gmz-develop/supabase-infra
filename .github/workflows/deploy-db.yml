@@ -2,6 +2,7 @@ name: deploy-supabase
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -102,10 +103,12 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
-          SUPABASE_URL="https://${PROJECT_REF}.supabase.co"
+          # Edge Functions: env names cannot start with SUPABASE_
+          # Use non-reserved names and read them in code, e.g. Deno.env.get('PROJECT_URL') / Deno.env.get('SERVICE_ROLE_KEY')
+          PROJECT_URL="https://${PROJECT_REF}.supabase.co"
           supabase secrets set \
-            SUPABASE_URL="$SUPABASE_URL" \
-            SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            PROJECT_URL="$PROJECT_URL" \
+            SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             --project-ref "$PROJECT_REF"
 
       - name: Deploy all Edge Functions
