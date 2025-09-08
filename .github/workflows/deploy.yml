@@ -18,23 +18,19 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          missing=0
-          check() {
-            local var_name=$1
-            local val="${!var_name:-}"
-            if [ -z "$val" ]; then
-              echo "::error title=Missing secret:: Secret $var_name is not set"
-              missing=1
+          missing=()
+          for name in SUPABASE_PROJECT_REF SUPABASE_DB_PASSWORD SUPABASE_ACCESS_TOKEN SUPABASE_SERVICE_ROLE_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=Missing secret:: Secret $name is not set"
+              missing+=("$name")
             fi
-          }
-          check SUPABASE_PROJECT_REF
-          check SUPABASE_DB_PASSWORD
-          check SUPABASE_ACCESS_TOKEN
-          check SUPABASE_SERVICE_ROLE_KEY
-          if [ "$missing" -eq 1 ]; then
-            echo "One or more required secrets are missing. Configure repository secrets in Settings → Secrets and variables → Actions."
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "One or more required secrets are missing: ${missing[*]}" >&2
+            echo "Configure repository secrets in Settings → Secrets and variables → Actions."
             exit 1
           fi
+          echo "::notice::All required secrets are set"
 
           # Normalize project ref in case a full URL was provided
           RAW_REF="${SUPABASE_PROJECT_REF}"
@@ -64,7 +60,7 @@ jobs:
           if [ -z "${PROJECT_REF:-}" ]; then echo "::error::PROJECT_REF not set"; exit 1; fi
           DB_HOST="db.${PROJECT_REF}.supabase.co"
           DB_HOST_IP=$(getent ahostsv4 "$DB_HOST" | awk '{print $1; exit}')
-          DB_URL="postgresql://postgres:${ENC_PASS}@${DB_HOST}:5432/postgres?hostaddr=${DB_HOST_IP}&sslmode=require"
+          DB_URL="postgresql://postgres:${ENC_PASS}@${DB_HOST_IP}:5432/postgres?sslmode=require"
           supabase db push --db-url "$DB_URL"
 
       - name: Set Edge Function secrets
